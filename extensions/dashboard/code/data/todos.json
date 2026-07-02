@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "last_updated": "2026-06-12T00:00:00",
+  "todos": [
+    {
+      "id": 1,
+      "text": "示例: 读书 30 分钟",
+      "done": false,
+      "category": "study"
+    },
+    {
+      "id": 2,
+      "text": "示例: 收拾玩具",
+      "done": true,
+      "category": "chore"
+    }
+  ],
+  "rewards": {
+    "today_score": 0,
+    "week_score": 0,
+    "goal": 10
+  }
+}
