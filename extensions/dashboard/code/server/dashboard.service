@@ -1,0 +1,21 @@
+[Unit]
+Description=Dashboard LED Matrix Server (Flask + watchdog + in-memory cache)
+Documentation=/home/wang/projects/kids-points-v2/extensions/dashboard/docs/plan.md
+After=network.target
+
+[Service]
+Type=simple
+User=wang
+WorkingDirectory=/home/wang/projects/kids-points-v2/extensions/dashboard/code/server
+ExecStart=python3 /home/wang/projects/kids-points-v2/extensions/dashboard/code/server/server.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# 轻量级资源限制 (dashboard 是只读服务, 不该爆)
+MemoryMax=256M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

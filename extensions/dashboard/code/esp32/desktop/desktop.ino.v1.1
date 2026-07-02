@@ -1,0 +1,409 @@
+// =============================================================
+// 桌面 dashboard - P2 128×96 单元板 + Flymara ESP32 HUB75E
+// M1.3 v1.1 (2026-06-15) — 字号对齐 sim + 中文 description
+//
+// 跟仿真 sim/desktop_sim.py v1.3 业务层 1:1 对应 (4 区, 横竖 2 套 ORIENTATION_CONFIGS),
+// 输出端 pygame → ESP32-HUB75-MatrixPanel-DMA.
+//
+// 数据流:
+//   Flask GET /api/dashboard  ← 30s 拉 1 次 (主)
+//   WS   /ws (推 {"type":"refresh"})  → 立即拉 1 次 (备, inotify V2 SQLite 触发)
+//   RAM 缓存 last_good  ← 网络挂 / V2 CLI 不可用时显示
+//
+// v1.1 改进 (相对 v1):
+//   - #2 字号: 标题 setTextSize(2), 流水 1, 底栏 1 — 对齐 sim 36/24/20 屏像素 (物理 6/4/3.3 字符)
+//   - #1 中文: 加 U8g2_for_Adafruit_GFX 桥接, 用 unifont_t_chinese1 字体 (12x13 像素, ~14KB Flash, ~1000 CJK chars)
+//   - #3 Wi-Fi 密码: TODO_FILL → D17 实际值, 烧录前老王再核对 1 次
+// v1.1 留 v1.2:
+//   - #4 NTP 时间同步 (留 M3, 不阻塞 M1.4 烧录)
+// =============================================================
+
+#include <Arduino.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>  // 实际库头名 (注意有 I2S)
+#include <ESPAsyncWebServer.h>
+#include <AsyncTCP.h>
+#include <ArduinoOTA.h>
+#include <U8g2_for_Adafruit_GFX.h>  // v1.1 加: 中文桥接
+
+// ---- CONFIG (D16/D17, M1.4 烧录前老王核对 1 次密码) ----
+const char* WIFI_SSID     = "YOUR_WIFI_SSID";
+// D17 实际值 (老王 06-12 拍板), 烧录前老王再 double check 1 次
+// memory 里标 [REDACTED] 是为了不写进 git history, 实际值在这里
+const char* WIFI_PASS     = "YOUR_WIFI_PASSWORD";
+const char* SERVER_HOST   = "YOUR_SERVER_IP";      // D16, Linux 服务器
+const uint16_t SERVER_PORT = 8080;                  // 跟 M1.2 server.py 一致
+const unsigned long FETCH_INTERVAL_MS = 30000;      // 30s 拉 (D21)
+const uint8_t BRIGHTNESS  = 80;                     // 0-255, 室内 80
+const char* DASHBOARD_TITLE = "KID POINTS";         // D18 = Kid Dashboard, 但 KID POINTS 字符更紧凑, 4 区布局更清晰
+
+// ---- 物理参数 (跟 sim/desktop_sim.py ORIENTATION_CONFIGS 完全一致) ----
+// 横版 128×96 (默认, 跟仿真 v1.3 一致)
+#define WIDTH  128
+#define HEIGHT 96
+
+// 4 区 y 坐标 (跟 sim 横版 ORIENTATION_CONFIGS["horizontal"] 1:1)
+#define TITLE_Y       4
+#define DIVIDER_1_Y   22
+#define ROW_1_Y       28
+#define ROW_2_Y       44
+#define ROW_3_Y       60
+#define DIVIDER_2_Y   78
+#define FOOTER_Y      82
+
+// 字号 (跟 sim 屏 36/24/20 屏像素物理 1:1, sim PIXEL_SIZE=6)
+// v1.1 改: GFX 5x7 字符框, 字号 N=1 物理 6 像素宽 × 7 像素高, 字号 N=2 物理 12×14
+// 标题 sim 36 屏 → 物理 6 字符高 → setTextSize(2) → 14 物理像素高, 装 18 物理高标题区 OK
+// 流水 sim 24 屏 → 物理 4 字符高 → setTextSize(1) → 7 物理像素高, 装 16 物理高流水区 OK
+// 底栏 sim 20 屏 → 物理 3.3 字符高 → setTextSize(1) → 7 物理像素高, 装 14 物理高底栏区 OK
+#define TITLE_TEXT_SIZE   2
+#define ROW_TEXT_SIZE     1
+#define FOOTER_TEXT_SIZE  1
+
+// 物理内边距
+#define PAD_X 4
+
+// 配色 (黑底 + 琥珀 + 关蓝 B=0, D4)
+#define COLOR_BLACK     0x0000
+#define COLOR_AMBER     0xFF8C00   // R=255, G=140, B=0 (0 蓝护眼)
+#define COLOR_AMBER_DIM 0x784600   // 暗琥珀, 占位/等待
+#define COLOR_RED_ERR   0xC81E00   // 暗红, 错误提示
+
+// ---- HUB75 (P2 128×96, 1/32 扫, Flymara ESP32-HUB75E 标准 pin) ----
+// v3 API: 第 4 参数是 i2s_pins struct (用默认 {R1=GPIO25, G1=26, B1=27, ...} 跟 Flymara 板匹配)
+HUB75_I2S_CFG mxconfig(
+  WIDTH, HEIGHT, 1                            // mx_width, mx_height, chain_length
+  );
+MatrixPanel_I2S_DMA* dma_display = nullptr;
+
+// ---- v1.1: U8g2 桥接 (中文字体) ----
+// chinese1 字体: 12x13 像素, ~14KB Flash, ~1000 CJK chars (kids-points 高频字够用)
+// 排除 chinese3 (36KB, 7000 chars) — 编译慢 + Flash 占 3 倍, 日常用不到 GB2312 全集
+U8G2_FOR_ADAFRUIT_GFX u8g2;
+// 中文字体选用 chinese1 (u8g2_font_unifont_t_chinese1) — 编译时间 +20s
+
+// ---- 业务层 (跟 sim 完全一致的数据流) ----
+struct DashboardData {
+  char title[20];
+  int total_balance;
+  int today_count;
+  int today_net;
+  struct {
+    char date[8];
+    char sign;
+    int amount;
+    char description[32];
+  } recent[3];
+  char last_updated[32];
+  bool has_error;
+  char error_msg[40];
+};
+
+DashboardData current_data;
+DashboardData last_good;
+bool has_last_good = false;
+
+volatile bool should_refresh = false;
+unsigned long last_fetch_ms = 0;
+unsigned long last_render_ms = 0;
+const unsigned long RENDER_INTERVAL_MS = 100;
+
+// ---- UTF-8 中文检测 ----
+bool has_chinese(const char* s) {
+  for (int i = 0; s[i]; i++) {
+    if ((unsigned char)s[i] >= 0x80) return true;
+  }
+  return false;
+}
+
+// ---- 渲染函数 ----
+// ASCII 文本: 用 Adafruit GFX 内置 5x7 字体
+void draw_ascii(MatrixPanel_I2S_DMA* d, const char* str, int x, int y, int size, uint16_t color) {
+  d->setTextSize(size);
+  d->setTextColor(color);
+  d->setCursor(x, y);
+  d->print(str);
+}
+
+// 中文/混合文本: 用 U8g2 unifont_t_chinese1 字体
+// 注意: U8g2 在 setCursor(x, y) 后 y 是 baseline (跟 GFX 一样), 字符高度 12 物理像素
+void draw_cn(MatrixPanel_I2S_DMA* d, const char* str, int x, int y, uint16_t color) {
+  u8g2.setFont(u8g2_font_unifont_t_chinese1);
+  u8g2.setFontMode(1);              // 透明背景
+  u8g2.setForegroundColor(color);   // RGB565
+  u8g2.setCursor(x, y);
+  u8g2.print(str);
+}
+
+void render_frame() {
+  dma_display->fillScreen(COLOR_BLACK);
+
+  // 错误状态
+  if (current_data.has_error || !has_last_good) {
+    DashboardData* d = has_last_good ? &last_good : &current_data;
+    draw_ascii(dma_display, d->title, PAD_X, TITLE_Y, TITLE_TEXT_SIZE, COLOR_AMBER);
+    if (current_data.has_error) {
+      draw_ascii(dma_display, current_data.error_msg, PAD_X, ROW_2_Y, ROW_TEXT_SIZE, COLOR_RED_ERR);
+    } else {
+      draw_ascii(dma_display, "WAITING...", PAD_X, ROW_2_Y, ROW_TEXT_SIZE, COLOR_AMBER_DIM);
+    }
+    draw_ascii(dma_display, "TODAY --   TOTAL --", PAD_X, FOOTER_Y, FOOTER_TEXT_SIZE, COLOR_AMBER);
+    return;
+  }
+
+  // === 1. 标题 (ASCII, setTextSize 2) ===
+  draw_ascii(dma_display, current_data.title, PAD_X, TITLE_Y, TITLE_TEXT_SIZE, COLOR_AMBER);
+
+  // === 2. 分隔线 ===
+  dma_display->drawFastHLine(0, DIVIDER_1_Y, WIDTH, COLOR_AMBER);
+  dma_display->drawFastHLine(0, DIVIDER_2_Y, WIDTH, COLOR_AMBER);
+
+  // === 3. 3 行流水 ===
+  // v1.1 布局: 左 7 字符 ("+1 06-14" ASCII 6 像素宽 × 7 = 42 物理像素) + 中间空 4 + 右 9 字符中文 (chinese1 12 物理宽 × 9 = 108, 但 128 - 42 - 4 - 4 = 78 物理像素 = 6.5 个 chinese1 字符)
+  // 实际 chinese1 12x13 字符宽 12 物理像素, 128 - 42 = 86 物理像素, 86/12 = 7 字
+  // 算保守: 中文截断到 6 字 = 72 物理像素 (42 + 72 + 4 padding = 118, 留 10 padding)
+  int row_y[3] = { ROW_1_Y, ROW_2_Y, ROW_3_Y };
+  for (int i = 0; i < 3; i++) {
+    if (strlen(current_data.recent[i].date) > 0) {
+      // 左: 金额 + 日期 (ASCII 7 字符)
+      char buf[32];
+      snprintf(buf, sizeof(buf), "%c%d %s",
+               current_data.recent[i].sign,
+               current_data.recent[i].amount,
+               current_data.recent[i].date);
+      draw_ascii(dma_display, buf, PAD_X, row_y[i], ROW_TEXT_SIZE, COLOR_AMBER);
+
+      // 右: description (有中文用 u8g2 chinese1, 纯 ASCII 用 GFX 截断)
+      const char* desc = current_data.recent[i].description;
+      if (has_chinese(desc)) {
+        // UTF-8 截断到 6 中文字 (UTF-8 中文 3 bytes/字, 6 字 = 18 bytes) + 留 1 byte null
+        char cn_buf[20];
+        int byte_count = 0, char_count = 0;
+        for (int j = 0; desc[j] && char_count < 6; j++) {
+          if ((unsigned char)desc[j] >= 0x80) {
+            // UTF-8 中文: 3 bytes
+            cn_buf[byte_count++] = desc[j];
+            cn_buf[byte_count++] = desc[j+1];
+            cn_buf[byte_count++] = desc[j+2];
+            j += 2;
+            char_count++;
+          } else {
+            // ASCII 1 byte
+            cn_buf[byte_count++] = desc[j];
+            char_count++;  // 算 1 字占位
+          }
+        }
+        cn_buf[byte_count] = '\0';
+        draw_cn(dma_display, cn_buf, PAD_X + 50, row_y[i], COLOR_AMBER);
+      } else {
+        // ASCII 描述, 截断 10 字符
+        char desc_ascii[12];
+        strncpy(desc_ascii, desc, 10);
+        desc_ascii[10] = '\0';
+        draw_ascii(dma_display, desc_ascii, PAD_X + 50, row_y[i], ROW_TEXT_SIZE, COLOR_AMBER);
+      }
+    } else {
+      // 空行占位
+      draw_ascii(dma_display, "-    --  -----", PAD_X, row_y[i], ROW_TEXT_SIZE, COLOR_AMBER_DIM);
+    }
+  }
+
+  // === 4. 底栏 ===
+  char footer[32];
+  if (current_data.today_count > 0) {
+    snprintf(footer, sizeof(footer), "TODAY %+d   TOTAL %d",
+             current_data.today_net, current_data.total_balance);
+  } else {
+    snprintf(footer, sizeof(footer), "TODAY --   TOTAL %d",
+             current_data.total_balance >= 0 ? current_data.total_balance : 0);
+  }
+  draw_ascii(dma_display, footer, PAD_X, FOOTER_Y, FOOTER_TEXT_SIZE, COLOR_AMBER);
+}
+
+// ---- HTTP 拉取 (主) ----
+bool fetch_dashboard() {
+  if (WiFi.status() != WL_CONNECTED) return false;
+
+  HTTPClient http;
+  String url = String("http://") + SERVER_HOST + ":" + SERVER_PORT + "/api/dashboard";
+  http.begin(url);
+  http.setTimeout(5000);
+  int http_code = http.GET();
+
+  if (http_code != 200) {
+    Serial.printf("[fetch] HTTP %d, 失败\n", http_code);
+    http.end();
+    return false;
+  }
+
+  String body = http.getString();
+  http.end();
+
+  // ArduinoJson 7.x 兼容: StaticJsonDocument 仍能用, 也可用 JsonDocument
+  StaticJsonDocument<1024> doc;
+  DeserializationError err = deserializeJson(doc, body);
+  if (err) {
+    Serial.printf("[fetch] JSON parse 失败: %s\n", err.c_str());
+    return false;
+  }
+
+  DashboardData d;
+  memset(&d, 0, sizeof(d));
+  strncpy(d.title, doc["title"] | "KID POINTS", sizeof(d.title) - 1);
+
+  if (doc["_error"].is<const char*>()) {
+    d.has_error = true;
+    strncpy(d.error_msg, doc["_error"], sizeof(d.error_msg) - 1);
+  } else {
+    d.has_error = false;
+  }
+
+  d.total_balance = doc["total_balance"] | -1;
+  d.today_count   = doc["today_count"]   | 0;
+  d.today_net     = doc["today_net"]     | 0;
+  strncpy(d.last_updated, doc["last_updated"] | "", sizeof(d.last_updated) - 1);
+
+  JsonArray recent = doc["recent"].as<JsonArray>();
+  for (size_t i = 0; i < 3 && i < recent.size(); i++) {
+    strncpy(d.recent[i].date, recent[i]["date"] | "", sizeof(d.recent[i].date) - 1);
+    const char* sign = recent[i]["type"] | "+";
+    d.recent[i].sign = (sign[0] == '-' ? '-' : '+');
+    d.recent[i].amount = abs(recent[i]["amount"] | 0);
+    strncpy(d.recent[i].description, recent[i]["description"] | "", sizeof(d.recent[i].description) - 1);
+  }
+
+  current_data = d;
+  last_good = d;
+  has_last_good = true;
+  Serial.printf("[fetch] OK: balance=%d, today_count=%d, today_net=%d, recent=%d\n",
+                d.total_balance, d.today_count, d.today_net, recent.size());
+  return true;
+}
+
+// ---- Wi-Fi 自动重连 ----
+void ensure_wifi() {
+  if (WiFi.status() == WL_CONNECTED) return;
+  Serial.printf("[wifi] 连 %s...\n", WIFI_SSID);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  int retry = 0;
+  while (WiFi.status() != WL_CONNECTED && retry < 30) {
+    delay(100);
+    retry++;
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("[wifi] 连上, IP=%s\n", WiFi.localIP().toString().c_str());
+  } else {
+    Serial.println("[wifi] 3s 内未连上, 后台继续重试");
+  }
+}
+
+// ---- WebSocket 推 (收 refresh) ----
+AsyncWebServer ws_server(80);
+AsyncWebSocket ws("/ws");
+
+void on_ws_event(AsyncWebSocket* server, AsyncWebSocketClient* client,
+                 AwsEventType type, void* arg, uint8_t* data, size_t len) {
+  if (type == WS_EVT_CONNECT) {
+    Serial.printf("[ws] client %u 连上\n", client->id());
+  } else if (type == WS_EVT_DISCONNECT) {
+    Serial.printf("[ws] client %u 断开\n", client->id());
+  } else if (type == WS_EVT_DATA) {
+    String msg = "";
+    for (size_t i = 0; i < len; i++) msg += (char)data[i];
+    Serial.printf("[ws] 收 %s\n", msg.c_str());
+    if (msg.indexOf("refresh") >= 0 || msg.indexOf("push") >= 0) {
+      should_refresh = true;
+      Serial.println("[ws] 收到 refresh/push, 触发立即拉");
+    }
+  }
+}
+
+// ---- HTTP /setup /refresh /health (调试) ----
+void handle_setup(AsyncWebServerRequest* req) {
+  if (req->hasParam("brightness")) {
+    uint8_t b = req->getParam("brightness")->value().toInt();
+    if (b > BRIGHTNESS) b = BRIGHTNESS;
+    dma_display->setBrightness(b);
+    req->send(200, "text/plain", "OK");
+  } else {
+    req->send(200, "text/plain", "dashboard ESP32");
+  }
+}
+
+void handle_refresh(AsyncWebServerRequest* req) {
+  should_refresh = true;
+  req->send(200, "text/plain", "refresh queued");
+}
+
+// ---- 启动 ----
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  Serial.println("\n=== desktop-dashboard M1.3 v1.1 (2026-06-15) ===");
+
+  // 1. HUB75
+  dma_display = new MatrixPanel_I2S_DMA(mxconfig);
+  dma_display->begin();
+  dma_display->setBrightness(BRIGHTNESS);
+  dma_display->fillScreen(COLOR_BLACK);
+  dma_display->setTextSize(1);
+  dma_display->setTextColor(COLOR_AMBER);
+  dma_display->setCursor(PAD_X, HEIGHT / 2 - 4);
+  dma_display->print("BOOT v1.1");
+
+  // 2. U8g2 中文桥接 (绑到 dma_display)
+  u8g2.begin(*dma_display);
+
+  // 3. Wi-Fi
+  ensure_wifi();
+
+  // 4. WebSocket server
+  ws.onEvent(on_ws_event);
+  ws_server.addHandler(&ws);
+  ws_server.on("/setup", HTTP_GET, handle_setup);
+  ws_server.on("/refresh", HTTP_GET, handle_refresh);
+  ws_server.on("/health", HTTP_GET, [](AsyncWebServerRequest* req) {
+    req->send(200, "text/json", String("{\"ok\":true,\"ip\":\"") +
+                              WiFi.localIP().toString() + "\"}");
+  });
+  ws_server.begin();
+  Serial.println("[ws] 服务起, /ws /setup /refresh /health");
+
+  // 5. OTA
+  ArduinoOTA.setHostname("dashboard-esp32");
+  ArduinoOTA.begin();
+  Serial.println("[ota] ArduinoOTA 起, 主机名 dashboard-esp32");
+
+  // 6. 启动时拉 1 次
+  delay(500);
+  fetch_dashboard();
+}
+
+void loop() {
+  // 1. Wi-Fi 看护
+  static unsigned long last_wifi_check = 0;
+  if (millis() - last_wifi_check > 5000) {
+    last_wifi_check = millis();
+    if (WiFi.status() != WL_CONNECTED) ensure_wifi();
+  }
+
+  // 2. 30s 拉 or WS 触发立即拉
+  if (should_refresh || (millis() - last_fetch_ms > FETCH_INTERVAL_MS)) {
+    should_refresh = false;
+    last_fetch_ms = millis();
+    fetch_dashboard();
+  }
+
+  // 3. 渲染 (10 FPS)
+  if (millis() - last_render_ms > RENDER_INTERVAL_MS) {
+    last_render_ms = millis();
+    render_frame();
+  }
+
+  // 4. OTA + WS 看护
+  ArduinoOTA.handle();
+  ws.cleanupClients();
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "title": "Kid Dashboard",
+  "total_balance": 108.5,
+  "today_count": 3,
+  "today_net": 4.0,
+  "recent": [
+    {
+      "date": "06-12",
+      "type": "+",
+      "amount": 3,
+      "description": "跳绳+口算",
+      "balance_after": 111.5
+    },
+    {
+      "date": "06-12",
+      "type": "-",
+      "amount": 5,
+      "description": "吃萨莉亚",
+      "balance_after": 106.5
+    },
+    {
+      "date": "06-11",
+      "type": "+",
+      "amount": 6,
+      "description": "数学口算+英赛尔",
+      "balance_after": 108.5
+    }
+  ],
+  "last_updated": "2026-06-12T19:30:00"
+}

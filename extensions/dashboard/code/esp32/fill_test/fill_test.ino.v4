@@ -1,0 +1,169 @@
+// fill_test v3: 4 测试循环 (纯显示模块, 不连 WiFi, 阶段 1 模块化)
+// 2026-06-18 06:xx 老王拍板 模块化
+// 5s 间隔循环 4 个测试, 各验证不同维度:
+//   T1 4 色全屏 fillScreen  - 库 + 1/32 扫 + E 线
+//   T2 4 区布局纯文本       - GFX 5x7 字号 + y 坐标 (setTextSize 1, 物理 6x7)
+//   T3 4 fillRect 色块      - 坐标映射 (4 个 1/4 屏)
+//   T4 中心十字 + 边框 + 对角 - HUB75 几何
+// 验收: T1 全屏 4 色 + T2 4 区文本清晰 + T3 4 块正确 + T4 边框 + 十字 + 对角
+
+#include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
+
+#define WIDTH  128
+#define HEIGHT 96
+
+// v4: 改 driver = FM6124 (P2 商用板 LED driver 芯片) + 回 TYPE138 (1/16 扫)
+// 之前 v1 (TYPE138 + SHIFTREG) = 底部 4 行 = 1/16 扫错位但工作
+// 之前 v3 (TYPE_DIRECT + SHIFTREG) = 全黑 = E 线没接 / SHIFTREG 配 TYPE_DIRECT 失败
+// v4 推测: P2 商用板用 FM6124 LED driver, 配 TYPE138 = 商用板标准配法
+// 期望: 全屏 4 色 + 4 区布局都正常
+HUB75_I2S_CFG mxconfig(
+  WIDTH, HEIGHT, 1,
+  {},
+  HUB75_I2S_CFG::FM6124,         // 改: P2 商用板 LED driver
+  HUB75_I2S_CFG::TYPE138         // 回: 1/16 扫
+);
+MatrixPanel_I2S_DMA* dma_display = nullptr;
+
+// 4 区 y 坐标 (跟 desktop.ino + sim/desktop_sim.py 1:1)
+#define TITLE_Y       4
+#define DIVIDER_1_Y   22
+#define ROW_1_Y       28
+#define ROW_2_Y       44
+#define ROW_3_Y       60
+#define DIVIDER_2_Y   78
+#define FOOTER_Y      82
+
+// 颜色
+#define COLOR_BLACK     0x0000
+#define COLOR_AMBER     0xFF8C00
+#define COLOR_RED       0xF800
+#define COLOR_GREEN     0x07E0
+#define COLOR_BLUE      0x001F
+#define COLOR_YELLOW    0xFFE0
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  Serial.println("\n=== fill_test v3 阶段 1 模块化 (2026-06-18 06:xx) ===");
+  dma_display = new MatrixPanel_I2S_DMA(mxconfig);
+  dma_display->begin();
+  dma_display->setBrightness(128);
+  dma_display->setTextSize(1);  // 物理 6x7 字号 (阶段 1 默认, 不上 2)
+  dma_display->setTextColor(COLOR_AMBER);
+  Serial.println("[init] HUB75 ready (TYPE_DIRECT, setTextSize 1)");
+}
+
+// === T1: 4 色全屏 fillScreen ===
+// 验证: 库 + 1/32 扫 + E 线通
+// 期望: 全屏 4 色, 每色 1s
+void test1_fillScreen() {
+  uint16_t colors[] = {COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_YELLOW};
+  const char* names[] = {"RED", "GRN", "BLU", "YEL"};
+  for (int i = 0; i < 4; i++) {
+    dma_display->fillScreen(colors[i]);
+    dma_display->setTextSize(1);
+    dma_display->setTextColor(COLOR_BLACK);
+    dma_display->setCursor(2, 2);
+    dma_display->print("T1 ");
+    dma_display->print(names[i]);
+    Serial.printf("[T1] %s\n", names[i]);
+    delay(1000);
+  }
+}
+
+// === T2: 4 区布局纯文本 ===
+// 验证: 字号 + y 坐标 + 4 区清晰
+// 期望: KID POINTS (标题) + 3 行流水 + TOTAL 75.5 (底栏) + 2 分割线
+void test2_4zone() {
+  dma_display->fillScreen(COLOR_BLACK);
+
+  // 标题
+  dma_display->setTextSize(1);
+  dma_display->setTextColor(COLOR_AMBER);
+  dma_display->setCursor(4, TITLE_Y);
+  dma_display->print("KID POINTS");
+
+  // 分割线 1
+  dma_display->drawFastHLine(0, DIVIDER_1_Y, WIDTH, COLOR_AMBER);
+
+  // 3 行流水 (左 amount+date + 右 description)
+  const char* row_lefts[] = {"+2 06-17", "+2 06-17", "+2 06-17"};
+  const char* row_rights[] = {"MATH", "ORAL", "ROPE"};
+  int row_y[3] = {ROW_1_Y, ROW_2_Y, ROW_3_Y};
+  for (int i = 0; i < 3; i++) {
+    dma_display->setCursor(4, row_y[i]);
+    dma_display->print(row_lefts[i]);
+    dma_display->setCursor(60, row_y[i]);
+    dma_display->print(row_rights[i]);
+  }
+
+  // 分割线 2
+  dma_display->drawFastHLine(0, DIVIDER_2_Y, WIDTH, COLOR_AMBER);
+
+  // 底栏
+  dma_display->setCursor(4, FOOTER_Y);
+  dma_display->print("TDAY +6 TOTAL 75.5");
+
+  Serial.println("[T2] 4 zone layout rendered");
+}
+
+// === T3: 4 fillRect 色块 (1/4 屏各 1 色) ===
+// 验证: 坐标映射 + 4 个等分屏
+// 期望: 左上红 + 右上绿 + 左下蓝 + 右下黄
+void test3_fillRect() {
+  dma_display->fillScreen(COLOR_BLACK);
+  int half_w = WIDTH / 2;
+  int half_h = HEIGHT / 2;
+  dma_display->fillRect(0, 0, half_w, half_h, COLOR_RED);            // 左上 红
+  dma_display->fillRect(half_w, 0, half_w, half_h, COLOR_GREEN);      // 右上 绿
+  dma_display->fillRect(0, half_h, half_w, half_h, COLOR_BLUE);       // 左下 蓝
+  dma_display->fillRect(half_w, half_h, half_w, half_h, COLOR_YELLOW); // 右下 黄
+
+  // 标 T3
+  dma_display->setTextSize(1);
+  dma_display->setTextColor(COLOR_BLACK);
+  dma_display->setCursor(2, 2);
+  dma_display->print("T3");
+
+  Serial.println("[T3] 4 fillRect rendered");
+}
+
+// === T4: 中心十字 + 边框 + 对角 ===
+// 验证: HUB75 几何 + 全屏 1/2 坐标 + 对角线
+// 期望: 边框 (4 边都画到) + 水平中线 + 垂直中线 + 2 对角 (左上到中心 + 右上到中心)
+void test4_cross() {
+  dma_display->fillScreen(COLOR_BLACK);
+  // 边框
+  dma_display->drawRect(0, 0, WIDTH, HEIGHT, COLOR_AMBER);
+  // 中心十字
+  dma_display->drawFastHLine(0, HEIGHT/2, WIDTH, COLOR_AMBER);
+  dma_display->drawFastVLine(WIDTH/2, 0, HEIGHT, COLOR_AMBER);
+  // 4 角到中心
+  dma_display->drawLine(0, 0, WIDTH/2, HEIGHT/2, COLOR_AMBER);
+  dma_display->drawLine(WIDTH-1, 0, WIDTH/2, HEIGHT/2, COLOR_AMBER);
+  dma_display->drawLine(0, HEIGHT-1, WIDTH/2, HEIGHT/2, COLOR_AMBER);
+  dma_display->drawLine(WIDTH-1, HEIGHT-1, WIDTH/2, HEIGHT/2, COLOR_AMBER);
+
+  // 标 T4
+  dma_display->setTextSize(1);
+  dma_display->setTextColor(COLOR_AMBER);
+  dma_display->setCursor(WIDTH - 16, HEIGHT - 8);
+  dma_display->print("T4");
+
+  Serial.println("[T4] cross + border + diagonals rendered");
+}
+
+void loop() {
+  test1_fillScreen();
+  delay(2000);  // 看 T1 最后色 (YELLOW) 2s
+
+  test2_4zone();
+  delay(3000);  // 看 T2 文本 3s
+
+  test3_fillRect();
+  delay(3000);  // 看 T3 色块 3s
+
+  test4_cross();
+  delay(3000);  // 看 T4 几何 3s
+}

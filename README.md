@@ -27,7 +27,7 @@ python3 runtime/cli.py "今天数学加 1 分"
 
 ## 扩展
 
-- 点阵屏看板：`extensions/`
+- 点阵屏看板：`extensions/dashboard/`
 
 ## 开源
 
