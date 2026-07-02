@@ -1,0 +1,23 @@
+# kids-points-runtime 配置（示例）
+# 用法: cp config.yaml.example config.yaml，然后填入你自己的值
+#
+# 所有 LLM / DB / 应用配置统一从这里读取（通过 llm_config.py 单入口导出）
+# 详细文档见 README.md §3 配置
+
+llm:
+  # 你的 LLM 提供商（需要 OpenAI Chat Completions 兼容协议）
+  # 推荐使用支持长上下文（≥32K）的模型，处理孩子的自然语言
+  provider: <your-provider>          # 例: openai / anthropic / deepseek
+  api_url: <your-chat-completions-url>  # 例: https://api.openai.com/v1/chat/completions
+  model: <your-model-name>           # 例: gpt-4o / claude-sonnet-4
+  key_source: env:<YOUR_LLM_API_KEY_ENV_VAR>  # 环境变量名（推荐）
+  timeout: 60
+  context_length: 200000            # 按你模型调整
+
+# 数据库（SQLite，默认在 runtime/data/）
+db:
+  path: data/kids_points.db
+
+# 应用
+app:
+  agent_version: v2.0.0

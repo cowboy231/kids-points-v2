@@ -1,0 +1,63 @@
+# ═══════════════════════════════════════════════════════════════
+# kids-points-v2 .gitignore
+#
+# 策略：main 分支只追踪开源安全的内容，敏感/内部资料在 .gitignore 里排除，
+# 开发者在 dev 分支上 work（本地不 push），定期 merge 到 main。
+# ═══════════════════════════════════════════════════════════════
+
+# ─── 真实配置 ─────────────────────────────────────────────────
+# 真实 config.yaml 永远不追踪（main 上只有 config.yaml.example）
+runtime/config.yaml
+config.yaml
+
+# ─── 数据库 ───────────────────────────────────────────────────
+# 生产 db 不追踪（主分支只需空 data/ + .gitkeep）
+runtime/data/*.db
+runtime/data/*.bak
+runtime/data/*.backup
+data/*.db
+data/*.bak
+
+# ─── 内部资料（仅 dev 本地使用） ─────────────────────────────
+BUGS.md
+HANDOVER.md
+env.sh
+
+# ─── 测试 / 报告（不追踪到 main） ─────────────────────────────
+tests/
+test_*.py
+debug_*.py
+*.jsonl
+replay*.jsonl
+run*.db
+replay*.db
+reports/
+e2e_report.html
+TESTING.md
+migrate_*.py
+practice-notes.md
+.replay_cache/
+
+# ─── Python 缓存 ──────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.pytest_cache/
+
+# ─── IDE / 编辑器 ─────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*~
+
+# ─── OS 自动生成的文件 ────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── build 产物（ClawHub 发布用，不提交） ──────────────────────
+skill/build/
+skill/release/
+skill/*.tar.gz
