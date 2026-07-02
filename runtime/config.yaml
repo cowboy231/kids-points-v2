@@ -1,0 +1,20 @@
+# kids-points-runtime 配置
+# 路径规则：相对于项目根目录，或绝对路径
+
+llm:
+  # 2026-06-13 切到中转 relay (wangmouren.online:3500 OneAPI) + 关 thinking
+  # 理由:relay 统一 4 个模型,实测 thinking.type=disabled 在 relay+官方都 5/5 稳定
+  provider: minimax
+  api_url: https://wangmouren.online:3500/v1/chat/completions
+  model: MiniMax-M3.0
+  key_source: env:MINIMAX_RELAY_API_KEY
+  timeout: 60
+  context_length: 200000
+
+# 数据库
+db:
+  path: data/kids_points.db
+
+# 应用
+app:
+  agent_version: v1.0.0-rebuild
