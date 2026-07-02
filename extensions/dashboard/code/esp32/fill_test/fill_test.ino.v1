@@ -1,0 +1,42 @@
+// M1.4 fillScreen 4 色循环测试 — 验证 HUB75 全屏能否点亮
+// 目的: 区分 scan rate/driver 错位 vs 字号/y 错位
+//  - 全屏亮 = 库正常,根因在 drawText (字号/y/driver 错位)
+//  - 只底部亮 = scan rate/driver 错位,需走 B 改 driver
+// 2026-06-17 老王 A 方案拍板
+
+#include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
+
+#define WIDTH  128
+#define HEIGHT 96
+
+HUB75_I2S_CFG mxconfig(WIDTH, HEIGHT, 1);
+MatrixPanel_I2S_DMA* dma_display = nullptr;
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  Serial.println("\n=== fill_test M1.4 (2026-06-17) ===");
+
+  // 1. HUB75 init (用 .ino 同样配置 — 默认 TYPE138 + SHIFTREG)
+  dma_display = new MatrixPanel_I2S_DMA(mxconfig);
+  dma_display->begin();
+  dma_display->setBrightness(128);
+  Serial.println("[init] HUB75 ready");
+
+  // 2. 4 色 1 秒循环
+}
+
+void loop() {
+  dma_display->fillScreen(0xF800);   // RED RGB565
+  Serial.println("[loop] fillScreen RED");
+  delay(1000);
+  dma_display->fillScreen(0x07E0);   // GREEN
+  Serial.println("[loop] fillScreen GREEN");
+  delay(1000);
+  dma_display->fillScreen(0x001F);   // BLUE
+  Serial.println("[loop] fillScreen BLUE");
+  delay(1000);
+  dma_display->fillScreen(0xFFE0);   // YELLOW
+  Serial.println("[loop] fillScreen YELLOW");
+  delay(1000);
+}
