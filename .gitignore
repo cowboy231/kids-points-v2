@@ -24,19 +24,10 @@ HANDOVER.md
 env.sh
 
 # ─── 测试 / 报告（不追踪到 main） ─────────────────────────────
-tests/
-test_*.py
-debug_*.py
-*.jsonl
-replay*.jsonl
-run*.db
-replay*.db
-reports/
-e2e_report.html
-TESTING.md
-migrate_*.py
-practice-notes.md
-.replay_cache/
+# tests/ 和 *.py 现在公开安全(自包含, 不依赖外部数据), 允许追踪到 main
+# reports/ 含脱敏报告 (test-cases-from-production, testing-journal), 允许追踪
+# test_data/ 含 V1 生产日志, 仅 dev 分支用 — 用 .gitignore 子规则排除
+test_data/
 
 # ─── Python 缓存 ──────────────────────────────────────────────
 __pycache__/
