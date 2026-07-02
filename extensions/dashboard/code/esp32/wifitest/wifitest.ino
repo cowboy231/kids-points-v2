@@ -14,7 +14,7 @@ void setup() {
       i+1, WiFi.SSID(i).c_str(), WiFi.RSSI(i),
       WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "open" : "enc");
   }
-  Serial.println("\n=== 现在连 Asur737 ===");
+  Serial.println("\n=== 现在连 YOUR_WIFI_SSID ===");
   WiFi.begin("YOUR_WIFI_SSID", "YOUR_WIFI_PASSWORD");
   for (int i = 0; i < 50; i++) {
     delay(200);

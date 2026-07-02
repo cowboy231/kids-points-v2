@@ -13,7 +13,7 @@
 > - **M1.4 ✅ 完成 (2026-06-19)**: ¥190 板到货 + 烧录调通 + 4 区 dashboard 渲染. 关键: 店家伙 v2.0.7 库 (默认 pinmap R1=14/E=16) 替代自装 v3.0.14 (默认 R1=25/E=-1 错配), 100% 复刻店家 HUB75E.txt, 字号 1-255 全支持, 双缓冲 + 5s 周期刷 (99.96% 静态). 备份: `desktop.ino.v2.3_M14_baseline`. 沉到 skill: `home-dashboard-display` Pitfall #33-#48 (24+ fill_test 失败根因 + 店家库 vs 自装库 + HUB75E B2 脚位 = E + v3 字段速查). **M1.5 候选** (老王 06-19 建议): "完全推模式" — server 推整帧 JSON → ESP32 直接 render, 0 主动拉 + 0 周期刷 = 0 撕裂闪烁. 留作"未来升级", 不阻塞 M1 收尾.
 >   - **#2 字号**: 标题 `setTextSize(2)` (10×14 物理像素, 装 18 物理高标题区), 流水/底栏 `setTextSize(1)` (5×7 物理像素) — 对齐 sim 36/24/20 屏像素
 >   - **#1 中文**: 加 `U8g2_for_Adafruit_GFX` 桥接, 用 `u8g2_font_unifont_t_chinese1` (12×13 像素, ~14KB Flash, ~1000 CJK chars). 渲染时分流: 纯 ASCII 走 GFX 5x7, 含中文走 U8g2 chinese1 + UTF-8 截断 6 字
->   - **#3 密码**: `TODO_FILL_PASSWORD` → D17 实际值 `q2lrLIvUs` (memory 标 [REDACTED] 是为不写进 git history, 实际值在 .ino, M1.4 老王再 double check 1 次)
+>   - **#3 密码**: `TODO_FILL_PASSWORD` → D17 实际值 `YOUR_WIFI_PASSWORD` (memory 标 [REDACTED] 是为不写进 git history, 实际值在 .ino, M1.4 老王再 double check 1 次)
 > - **Arduino 环境配齐**: `arduino-cli 1.5.1` 装到 `~/.local/bin/`, ESP32 平台 `2.0.17` (跟 ESPAsyncWebServer 3.1.0 + mbedtls 兼容, 3.3.10 跟 ESPAsyncWebServer 有 breaking change), 6 个库全装 (HUB75 3.0.14 / ArduinoJson 7.4.3 / ESPAsyncWebServer 3.1.0 / AsyncTCP 1.1.4 / U8g2 2.36.19 / U8g2_for_Adafruit_GFX 1.8.0).
 > - **编译验证**: `arduino-cli compile --fqbn esp32:esp32:esp32 .` ✅ 0 错误 0 警告. Flash 1033729 bytes (78%) / RAM 52360 bytes (15%). 实测可烧.
 > - **M1.3 仍留 v1.2 (不阻塞)**: #4 NTP 时间同步 (M3 候选, 暂不实现).
@@ -616,7 +616,7 @@ def get_history(days: int = 7, limit: int = 50) -> dict:
 - ping 自测: 0.014ms, 本机 = server, 局域网内极快
 - ESP32 config 块写死 `http://YOUR_SERVER_IP:8080`
 
-### D17. 2026-06-12 下午 — Wi-Fi SSID = Asur737, 密码 = q2lrLIvUs
+### D17. 2026-06-12 下午 — Wi-Fi SSID = YOUR_WIFI_SSID, 密码 = YOUR_WIFI_PASSWORD
 - 老王提供, ESP32 config 写死
 - 2.4GHz 频段 (本机走无线网卡, ESP32 仅支持 2.4G, 兼容)
 - ⚠️ 烧录前老王再 double check 一次密码 (我没机会实测 ESP32 连)
@@ -653,8 +653,8 @@ def get_history(days: int = 7, limit: int = 50) -> dict:
 > ✅ **Q2.1 / Q3.1 / Q3.2 / Q7.x 已答 (2026-06-12 下午)**, 仅剩 Q4.1 板到货日.
 
 - [x] ✅ **Q2.1**: Linux 服务器 IP = `YOUR_SERVER_IP` (自查 `ip addr` + `ping` 0.014ms 确认, 无线网卡 `wlp0s20f3`, 网关 192.168.50.1)
-- [x] ✅ **Q3.1**: Wi-Fi SSID = `Asur737`
-- [x] ✅ **Q3.2**: Wi-Fi 密码 = `q2lrLIvUs`
+- [x] ✅ **Q3.1**: Wi-Fi SSID = `YOUR_WIFI_SSID`
+- [x] ✅ **Q3.2**: Wi-Fi 密码 = `YOUR_WIFI_PASSWORD`
 - [ ] ❓ **Q4.1**: ¥190 板预计到货日 (老王手动通知)
 - [x] ✅ **Q7.x**: 看板标题 = `Kid Dashboard`
 - [ ] ❓ **Q9.1**: V2 promotion 状态 — 老王拍板 promote 时间 (kids-points V2 promotion 之前, dashboard 板显示的 V2 余额跟 V1 实际余额对不上, 因为 V2 production DB 还没数据; V2 promotion 之后这个问题自动消失). 答完可决定: (a) M1 验收时是 V1 balance 还是 V2 production DB? (b) 板到货后 V2 promotion 还没拍, 先用 V1 兜底, 等 V2 promotion 切?

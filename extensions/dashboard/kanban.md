@@ -136,7 +136,7 @@
 
 M1.4 烧录/部署前必答:
 - [x] ✅ **Q2.1**: Linux 服务器 IP = `YOUR_SERVER_IP` (自查 `ip addr` + `ping` 0.014ms 确认, 无线网卡 `wlp0s20f3`, 网关 192.168.50.1)
-- [x] ✅ **Q3.1 / Q3.2**: Wi-Fi SSID = `Asur737` / 密码 = `q2lrLIvUs` (2.4GHz 兼容)
+- [x] ✅ **Q3.1 / Q3.2**: Wi-Fi SSID = `YOUR_WIFI_SSID` / 密码 = `YOUR_WIFI_PASSWORD` (2.4GHz 兼容)
 - [ ] ❓ **Q4.1**: ¥190 板预计到货日 (老王手动通知, 板到即解锁 M1.4)
 - [x] ✅ **Q7.x**: 看板标题 = `Kid Dashboard`
 

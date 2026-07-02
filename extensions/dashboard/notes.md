@@ -16,8 +16,8 @@
 
 ### Q3. 家里 Wi-Fi ✅ (2026-06-12 下午)
 
-- **Q3.1**: ✅ SSID = `Asur737`
-- **Q3.2**: ✅ 密码 = `q2lrLIvUs`
+- **Q3.1**: ✅ SSID = `YOUR_WIFI_SSID`
+- **Q3.2**: ✅ 密码 = `YOUR_WIFI_PASSWORD`
 - **Q3.3**: ✅ 频段 2.4GHz (本机走无线网卡 wlp0s20f3, ESP32 仅支持 2.4G, 自然兼容)
 
 ### Q4. ¥190 板到货 ❓ (M1.4 仍待)
@@ -148,7 +148,7 @@
 - ping 自测: 0.014ms, 本机 = server, 局域网内极快
 - ESP32 config 块写死 `http://YOUR_SERVER_IP:8080`
 
-### D17. 2026-06-12 下午 — Wi-Fi SSID = Asur737, 密码 = q2lrLIvUs
+### D17. 2026-06-12 下午 — Wi-Fi SSID = YOUR_WIFI_SSID, 密码 = YOUR_WIFI_PASSWORD
 - 老王提供, ESP32 config 写死
 - 2.4GHz 频段 (本机走无线网卡, ESP32 仅支持 2.4G, 兼容)
 - ⚠️ 烧录前老王再 double check 一次密码 (我没机会实测 ESP32 连)

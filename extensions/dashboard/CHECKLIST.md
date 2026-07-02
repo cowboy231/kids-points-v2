@@ -40,7 +40,7 @@
 
 ### 老王必答 (M1.4 烧录前, 详见 `notes.md` 🔴)
 - [x] ✅ **Q2.1**: 家里 Linux 服务器 IP = `YOUR_SERVER_IP` (自查确认)
-- [x] ✅ **Q3.1 / Q3.2**: Wi-Fi SSID = `Asur737` / 密码 = `q2lrLIvUs` (2.4GHz 兼容)
+- [x] ✅ **Q3.1 / Q3.2**: Wi-Fi SSID = `YOUR_WIFI_SSID` / 密码 = `YOUR_WIFI_PASSWORD` (2.4GHz 兼容)
 - [ ] **Q4.1**: ¥190 板预计到货日 (老王手动通知)
 - [x] ✅ **Q7.x**: 看板标题 = `Kid Dashboard`
 

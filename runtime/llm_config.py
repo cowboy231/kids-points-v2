@@ -87,6 +87,9 @@ def _resolve_api_key(cfg: dict) -> str:
         key = os.environ.get(env_var)
         if key:
             return key
+        # 模板占位符（config.yaml 未编辑）→ 返回空字符串，测试用 mock.patch 覆盖
+        if env_var.startswith("<") and env_var.endswith(">"):
+            return ""
         raise KeyError(f"环境变量 {env_var} 未设置")
 
     if key_source == "auth_json":

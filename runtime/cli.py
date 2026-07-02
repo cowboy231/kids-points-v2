@@ -25,11 +25,11 @@ from datetime import date, timedelta
 # 确保能找到同目录的模块
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from db import (
+from .db import (
     init_db, get_current_balance, get_daily_stats,
     get_transactions_range, cents_to_display,
 )
-from pipeline import process_message, call_llm as _call_llm
+from .pipeline import process_message, call_llm as _call_llm
 from reports import generate_daily_report, generate_monthly_report
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "kids_points.db")

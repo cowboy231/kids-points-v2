@@ -8,7 +8,7 @@ import time
 from datetime import datetime, timezone
 from typing import Optional
 
-from db import (
+from .db import (
     init_db,
     get_current_balance,
     insert_transaction,
@@ -30,7 +30,7 @@ from db import (
 
 # ─── LLM 调用 ────────────────────────────────────────────────────────────────
 
-from llm_config import LLM_API_KEY, LLM_API_URL, LLM_MODEL, AGENT_VERSION, call_llm as _call_llm, _extract_json
+from .llm_config import LLM_API_KEY, LLM_API_URL, LLM_MODEL, AGENT_VERSION, call_llm as _call_llm, _extract_json
 
 # 重新导出，保持 API 兼容
 call_llm = _call_llm
@@ -905,7 +905,7 @@ def _execute_simple_query(conn, query_data: dict) -> dict:
 
 def _execute_semantic_query(conn, query_data: dict) -> dict:
     """执行语义查询（LLM 生成的 SQL）。"""
-    from db import execute_query
+    from .db import execute_query
 
     sql = query_data.get("sql", "")
     if not sql:

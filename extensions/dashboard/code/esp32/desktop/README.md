@@ -40,7 +40,7 @@
 - 串口监视器 (115200 baud) 看启动日志:
    ```
    === desktop-dashboard M1.3 v1 (2026-06-15) ===
-   [wifi] 连 Asur737...
+   [wifi] 连 YOUR_WIFI_SSID...
    [wifi] 连上, IP=192.168.x.x
    [ws] 服务起, /ws /setup /refresh /health
    [ota] ArduinoOTA 起, 主机名 dashboard-esp32
