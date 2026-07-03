@@ -7,6 +7,8 @@
 > **一个家长 + AI 给孩子记积分的工具。**
 > 不是记账软件，不是打卡 App——是一套用自然语言帮孩子看见"每一点进步"的系统。
 
+**🌐 语言 / Languages / 言語**: **中文** · [English](README.en.md) · [日本語](README.ja.md)
+
 ---
 
 ## 💡 这件事的初衷
@@ -154,7 +156,9 @@ export KIDS_POINTS_RUNTIME_DIR=/path/to/your/kids-points-runtime
 
 ```
 kids-points-v2/
-├── README.md                    # ← 你在这里
+├── README.md                    # ← 你在这里（中文）
+├── README.en.md                 # English
+├── README.ja.md                 # 日本語
 ├── LICENSE                      # MIT
 ├── runtime/                     # V2 Python runtime
 │   ├── cli.py                   # CLI 入口
