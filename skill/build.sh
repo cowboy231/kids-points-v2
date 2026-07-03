@@ -122,7 +122,7 @@ rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
 # ─── Step 1: 复制 skill/ 顶层文件 ─────────────────────────────
-for f in SKILL.md README.md LICENSE agent-handler.js VERSION CHANGELOG.md; do
+for f in SKILL.md README.md README.en.md README.ja.md LICENSE agent-handler.js VERSION CHANGELOG.md; do
   if [ -e "$SKILL_ROOT/$f" ]; then
     cp -r "$SKILL_ROOT/$f" "$BUILD_DIR/"
   fi
