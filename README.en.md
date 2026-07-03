@@ -13,11 +13,9 @@
 
 ## 💡 Why This Exists
 
-My daughter Wenwen is in second grade. Every day after school, she has to finish Chinese character copying, math drills, English check-ins... these tasks themselves aren't a problem, and she's willing to do them.
+Many parents run into the same small problem: kids do their daily tasks (copying, drills, check-ins...) without earning anything, and going the extra mile gets no recognition either. Over time, a child's self-drive gets worn down by routine.
 
-But the issue is: **doing daily required tasks earns no points, and going beyond them gets no feedback either.** Over time, a child's "self-drive" slowly gets worn down by "going through the motions."
-
-So I started tracking her points — not for rewards and punishments, but to **let her see her incremental contributions**.
+This system tries to solve that with the most natural interface — a Feishu group message or a CLI one-liner — so parents can log their kid's **incremental contributions** (an extra book, proactively tidying up, helping with housework) and let the child see that they did something better than required.
 
 ### Design Philosophy: Increments, Not Tasks
 
@@ -43,7 +41,7 @@ kids-points-v2 is the **V2 rewrite** of this point system — upgrading from V1'
 
 | Dimension | V1 | **V2** |
 |------|----|--------|
-| Accounting method | Keyword matching (rigid rules) | **LLM semantic understanding** (works for "Wenwen gets 1 point for math today" or "Wenwen behaved well today") |
+| Accounting method | Keyword matching (rigid rules) | **LLM semantic understanding** (works for "1 point for math today" or "the kid behaved well today") |
 | Data storage | Text files (loss-prone under concurrency) | **SQLite** (transactions, survives power loss) |
 | Interaction | Script calls only | **CLI interface** + Feishu Bot |
 | Speech recognition | Built-in ASR (heavy) | **Reuse Feishu voice-to-text** (lightweight) |
@@ -56,7 +54,7 @@ kids-points-v2 is the **V2 rewrite** of this point system — upgrading from V1'
 ### Most Natural Way: @bot in Feishu Group
 
 ```
-@Bot  Wenwen proactively tidied her desk today and helped mom wash the dishes
+@Bot  The kid proactively tidied their desk today and helped mom wash the dishes
 → ✅ Recorded: tidied desk +1, housework help +1, total +2 points
 
 @Bot  What's the current balance?
@@ -67,7 +65,7 @@ kids-points-v2 is the **V2 rewrite** of this point system — upgrading from V1'
 
 ```bash
 # Full pipeline (LLM recognition + accounting)
-python3 runtime/cli.py "Wenwen gets 1 point for math today"
+python3 runtime/cli.py "the kid gets 1 point for math today"
 
 # Check balance (no LLM needed)
 python3 runtime/cli.py balance
@@ -131,7 +129,7 @@ cp runtime/config.yaml.example runtime/config.yaml
 python3 runtime/cli.py balance
 
 # Record a transaction
-python3 runtime/cli.py "Wenwen gets 1 point for math today"
+python3 runtime/cli.py "the kid gets 1 point for math today"
 ```
 
 ### Install via ClawHub (Recommended)
