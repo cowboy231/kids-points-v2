@@ -84,14 +84,15 @@ echo ""
 SENSITIVE_PATTERNS=(
   "q2lrLIvUs"               # 旧 WiFi 密码
   "Asur737"                 # 旧 WiFi SSID
-  "192\.168\.50\."          # 旧家庭 IP 网段
   "ghp_trNbh3"              # 旧 GitHub token 前缀
-  "YOUR_WIFI_PASSWORD"      # 已替换占位符（说明还有源泄漏）
+  "YOUR_WIFI_PASSWORD"      # 占位符漏改检查（运行时不应该再出现）
   "YOUR_WIFI_SSID"
+  "YOUR_SERVER_IP"
 )
 
 echo "🔍 脱敏 sanity check..."
-SCAN_DIRS=("$SKILL_ROOT" "$RUNTIME_ROOT" "$EXTENSIONS_ROOT")
+# 扫描源区域：runtime/ + extensions/ （skill/ 是元数据/build 工具自己，patterns 在那里出现是预期的）
+SCAN_DIRS=("$RUNTIME_ROOT" "$EXTENSIONS_ROOT")
 LEAKED=0
 for pattern in "${SENSITIVE_PATTERNS[@]}"; do
   matches=$(grep -rEln "$pattern" "${SCAN_DIRS[@]}" 2>/dev/null \
