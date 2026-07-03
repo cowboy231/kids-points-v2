@@ -211,6 +211,10 @@ kids-points-v2/
 ## 🏺 Related Projects
 
 - **Desktop Points Dashboard**: `extensions/dashboard/` — ESP32 + LED matrix display, desktop version
+
+  ![Desktop dashboard real-hardware photo](extensions/dashboard/docs/dashboard-real-hardware.jpg)
+
+  *Real photo of an 11" HUB75 LED matrix display showing red/green dual-color rendering + bottom sparkline trend*
 - **kids-points V1**: [clawhub.ai/cowboy231/skills/kids-points](https://clawhub.ai/cowboy231/skills/kids-points)
 
 ---
