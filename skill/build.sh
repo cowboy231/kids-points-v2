@@ -156,7 +156,8 @@ find "$RT_BUILD" -name "*.pyc" -delete 2>/dev/null || true
 # 复制全部 extensions，但排除：
 #   - __pycache__/
 #   - *.v1, *.v2, *.v3, *.v4, *.v*_partial 等历史备份
-#   - data/*.json 里的运行时数据（保留 README）
+#   - code/data/*.json 里的运行时数据（保留 README）
+#   - 内部 dev 笔记（kanban / notes / CHECKLIST / docs/plan / verify / roadmap / CHANGELOG）
 if [ -d "$EXTENSIONS_ROOT" ]; then
   echo "📦 打包 extensions/ ..."
   rsync -a --exclude='__pycache__' \
@@ -165,6 +166,13 @@ if [ -d "$EXTENSIONS_ROOT" ]; then
             --exclude='*.ino.*_partial' \
             --exclude='code/data/*.json' \
             --exclude='code/server/server_v*.py' \
+            --exclude='kanban.md' \
+            --exclude='notes.md' \
+            --exclude='CHECKLIST.md' \
+            --exclude='docs/plan.md' \
+            --exclude='docs/verify.md' \
+            --exclude='docs/roadmap.md' \
+            --exclude='docs/CHANGELOG.md' \
             "$EXTENSIONS_ROOT/" "$BUILD_DIR/extensions/"
 fi
 
