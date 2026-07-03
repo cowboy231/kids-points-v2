@@ -65,11 +65,12 @@ case "$BUMP" in
   major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
   minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
   patch) PATCH=$((PATCH + 1)) ;;
+  current) NEW_VERSION="$CURRENT" ;;  # 不 bump，用当前版本
   *)
     if [[ "$BUMP" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
       NEW_VERSION="$BUMP"
     else
-      echo "❌ 版本参数错误: $BUMP (用 major|minor|patch 或 X.Y.Z)"
+      echo "❌ 版本参数错误: $BUMP (用 major|minor|patch|current 或 X.Y.Z)"
       exit 1
     fi
     ;;
