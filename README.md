@@ -210,11 +210,11 @@ kids-points-v2/
 
 ## 🏺 配套项目
 
-- **桌面积分看板**：`extensions/dashboard/` — ESP32 + LED 矩阵屏的桌面版展示
+- **桌面积分看板**：`extensions/dashboard/` — ESP32-WROOM-32 控制 HUB75E 全彩 RGB 128×96 LED 矩阵屏
 
   ![桌面积分看板实物图](extensions/dashboard/docs/dashboard-real-hardware.jpg)
 
-  *11 寸 HUB75 LED 矩阵屏实拍，红+绿双色渲染 + 底部 sparkline 趋势*
+  > *全栈 100% 由 Hermes Agent 编写——从 server 到 ESP32 固件。如果你想做一块属于自己的桌面积分板，完全可以让 AI agent 参考这组代码和硬件 demo，直接完成。*
 - **kids-points V1**：[clawhub.ai/cowboy231/skills/kids-points](https://clawhub.ai/cowboy231/skills/kids-points)
 
 ---
