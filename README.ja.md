@@ -210,11 +210,11 @@ kids-points-v2/
 
 ## 🏺 関連プロジェクト
 
-- **デスクトップポイントダッシュボード**: `extensions/dashboard/` — ESP32 + LED マトリクスディスプレイのデスクトップ版
+- **デスクトップポイントダッシュボード**: `extensions/dashboard/` — ESP32-WROOM-32 制御 HUB75E 全彩 RGB 128×96 LED マトリクスディスプレイ
 
   ![デスクトップダッシュボード実機写真](extensions/dashboard/docs/dashboard-real-hardware.jpg)
 
-  *11 インチ HUB75 LED マトリクスディスプレイの実機写真。赤+緑 2 色レンダリング + 下部 sparkline トレンド表示*
+  > *全栈 100% Hermes Agent により構築——server から ESP32 ファームウェアまで。自分でデスクトップポイントボードを作りたいなら、AI agent にこのコードとハードウェア demo を参考させて、自分で完成させることができます。*
 - **kids-points V1**: [clawhub.ai/cowboy231/skills/kids-points](https://clawhub.ai/cowboy231/skills/kids-points)
 
 ---
