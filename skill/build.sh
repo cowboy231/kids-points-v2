@@ -178,9 +178,12 @@ fi
 
 # ─── Step 4: 写 VERSION ─────────────────────────────────────
 echo "$NEW_VERSION" > "$BUILD_DIR/VERSION"
-echo "$NEW_VERSION" > "$SKILL_ROOT/VERSION"
+if [[ "$DRY_RUN" != "true" ]]; then
+  # dry-run 不动 source VERSION，只动 build/VERSION
+  echo "$NEW_VERSION" > "$SKILL_ROOT/VERSION"
+fi
 
-# 同步 SKILL.md frontmatter 里的 version 字段
+# 同步 SKILL.md frontmatter 里的 version 字段（build 副本里改）
 if [ -f "$BUILD_DIR/SKILL.md" ]; then
   sed -i "s/^version: .*/version: $NEW_VERSION/" "$BUILD_DIR/SKILL.md"
 fi
