@@ -1,7 +1,9 @@
 ---
 name: kids-points-v2
+version: 2.0.0
 description: 儿童积分管理 V2 - SQLite 存储 + LLM 语义分析 + CLI 接口，飞书群聊与单聊全量支持
 metadata: {"openclaw":{"emoji":"📊","requires":{"bins":["python3"]}}}
+tags: [kids, points, family, sqlite, llm, feishu, chinese, parenting]
 ---
 
 # kids-points-v2 - 积分助手 V2 📊
