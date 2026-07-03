@@ -202,12 +202,17 @@ else
   if [[ -n "$LAST_TAG" ]]; then
     RANGE="$LAST_TAG..HEAD"
   else
-    RANGE="HEAD~20..HEAD"  # 没 tag 就取最近 20 个
+    RANGE=""  # 没 tag 就取最近 15 个 commit（不限范围）
   fi
 
-  CHANGELOG_BODY=$(git -C "$PROJECT_ROOT" log --oneline --no-decorate $RANGE 2>/dev/null \
-    | sed 's/^/  - /' \
-    | head -50 || true)
+  if [[ -n "$RANGE" ]]; then
+    CHANGELOG_BODY=$(git -C "$PROJECT_ROOT" log --oneline --no-decorate $RANGE 2>/dev/null \
+      | sed 's/^/  - /' \
+      | head -50 || true)
+  else
+    CHANGELOG_BODY=$(git -C "$PROJECT_ROOT" log --oneline --no-decorate -n 15 2>/dev/null \
+      | sed 's/^/  - /' || true)
+  fi
 
   if [[ -z "$CHANGELOG_BODY" ]]; then
     CHANGELOG_BODY="  - (无 git log)"
