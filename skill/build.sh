@@ -82,13 +82,12 @@ echo ""
 # ─── 脱敏 sanity check ──────────────────────────────────────
 # 扫描 build 源区域，禁止敏感串进 tarball
 SENSITIVE_PATTERNS=(
-  "q2lrLIvUs"               # 旧 WiFi 密码
-  "Asur737"                 # 旧 WiFi SSID
-  "ghp_trNbh3"              # 旧 GitHub token 前缀
-  "YOUR_WIFI_PASSWORD"      # 占位符漏改检查（运行时不应该再出现）
-  "YOUR_WIFI_SSID"
-  "YOUR_SERVER_IP"
+  "q2lrLIvUs"               # 旧 WiFi 密码（脱敏前的真实值）
+  "Asur737"                 # 旧 WiFi SSID（脱敏前的真实值）
+  "ghp_trNbh3"              # 旧 GitHub token 前缀（脱敏前的真实值）
 )
+# 注：YOUR_WIFI_PASSWORD / YOUR_WIFI_SSID / YOUR_SERVER_IP 是占位符（开源模板标准做法），
+#     它们出现是预期的，不扫描。
 
 echo "🔍 脱敏 sanity check..."
 # 扫描源区域：runtime/ + extensions/ （skill/ 是元数据/build 工具自己，patterns 在那里出现是预期的）
