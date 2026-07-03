@@ -5,6 +5,12 @@
 
 **这不是产品**——是一个家长（老王）为了让孩子随时在桌面看到自己的积分，临时攒出来的硬件实验。如果你也想做一块，可以把它当参考，但不建议 1:1 照抄。
 
+> 📦 **完整源码**（ESP32 固件 / systemd service 文件 / 烧录说明）在 GitHub 仓库：
+> <https://github.com/cowboy231/kids-points-v2/tree/main/extensions/dashboard>
+>
+> ClawHub 上是**核心 skill 包**，不含 ESP32 `.ino` 固件源码（ClawHub 不接受这种 content type）。
+> 用户从 GitHub 取 `extensions/dashboard/code/esp32/` 后自行烧录。
+
 ---
 
 ## 🎯 它能干什么
