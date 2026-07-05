@@ -25,6 +25,13 @@ V2_RUNTIME_DIR = os.environ.get(
     "KIDS_POINTS_RUNTIME_DIR",
     str(Path(__file__).parent.parent / "runtime")
 )
+# 2026-07-05: V2 项目根目录 (包模式 `python3 -m runtime.cli` + cwd=).
+# 跟 V2_RUNTIME_DIR 区别: RUNTIME_DIR = .../runtime (cli.py 所在), PROJECT_ROOT = .../ (包根).
+V2_PROJECT_ROOT = os.environ.get(
+    "KIDS_POINTS_PROJECT_ROOT",
+    str(Path(V2_RUNTIME_DIR).parent) if Path(V2_RUNTIME_DIR).name == "runtime"
+    else str(Path(__file__).parent.parent)
+)
 
 
 def handle_feishu_message(context):
@@ -51,10 +58,15 @@ def handle_feishu_message(context):
     # ── 调 V2 cli.py 单条消息模式 ───────────────────────────────────
     # cli.py 走 process_message → 8 步 pipeline → 写 V2 SQLite → 返 result["reply"]
     # V2 的 dedup 走 trace_id, 单进程内 random hex 已足够
+    #
+    # 2026-07-05 fix: 用包模式 `python3 -m runtime.cli` + cwd=V2_PROJECT_ROOT,
+    # 让 cli.py 的相对导入 `from .db` / `from .pipeline` 找得到父包.
+    # 之前用脚本模式跑 `python3 cli.py <msg>` 会 ImportError, 但当时被
+    # OpenClaw 包装的 process_message 入口掩盖, 飞书端表现为静默失败.
     try:
         result = subprocess.run(
-            ["python3", "cli.py", message],
-            cwd=V2_RUNTIME_DIR,
+            ["python3", "-m", "runtime.cli", message],
+            cwd=V2_PROJECT_ROOT,
             capture_output=True,
             text=True,
             timeout=30,
@@ -63,7 +75,7 @@ def handle_feishu_message(context):
     except subprocess.TimeoutExpired:
         return "⚠️ V2 处理超时 (30s), 请重试"
     except FileNotFoundError:
-        return f"⚠️ V2 路径找不到: {V2_RUNTIME_DIR}"
+        return f"⚠️ V2 路径找不到: {V2_PROJECT_ROOT}"
     except Exception as e:
         return f"⚠️ V2 调用失败: {type(e).__name__}: {e}"
     
