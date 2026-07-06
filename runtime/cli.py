@@ -30,7 +30,55 @@ from .db import (
     get_transactions_range, cents_to_display,
 )
 from .pipeline import process_message, call_llm as _call_llm
-from reports import generate_daily_report, generate_monthly_report
+
+# 2026-07-05 修复: 删除死导入 `from reports import generate_daily_report, generate_monthly_report`.
+#   背景: 5cfda3e 把 `from db / from pipeline` 改成相对导入 (`from .db / from .pipeline`),
+#   但漏改了 `from reports import ...` 这行. reports/ 是仓库根的"报告产物"目录
+#   (含 .md / .json / v1_v2_compare.py, 没 __init__.py), 这两个函数本仓库也无定义.
+#   不影响 dashboard (只看 balance/today/history), 但任何调 cli.py 的路径都会挂.
+#   修法: 延迟到 --daily/--monthly 用时再 try-import, 缺则提示"未实现" (看板不需要这俩功能).
+generate_daily_report = None   # 占位, --daily 用 _try_import_reports() 懒加载
+generate_monthly_report = None  # 同上
+
+
+def _try_import_reports():
+    """懒加载 reports 模块. 失败 (仓库无 reports 包) 返 None; 成功写回模块变量.
+
+    设计: 早期 cli.py 用 `from reports import ...`, 但 reports/ 是仓库根的报告产物目录
+    (含 .md / .json), 不是 Python 包. 改成延迟到 --daily/--monthly 真正需要时再尝试,
+    找不到就给用户友好提示, 而不是启动期崩.
+    """
+    global generate_daily_report, generate_monthly_report
+    if generate_daily_report is not None:
+        return True
+    try:
+        # reports/ 在仓库根, 加 sys.path 后才能 import
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from reports import generate_daily_report as gdr, generate_monthly_report as gmr
+        generate_daily_report = gdr
+        generate_monthly_report = gmr
+        return True
+    except (ImportError, ModuleNotFoundError):
+        return False
+
+
+def cmd_reports_daily() -> int:
+    """/daily 或 --daily. 返 exit code."""
+    if not _try_import_reports() or generate_daily_report is None:
+        print("⚠️  --daily 功能未实现 (仓库无 reports 包)", file=sys.stderr)
+        return 1
+    print(generate_daily_report(DB_PATH))
+    return 0
+
+
+def cmd_reports_monthly() -> int:
+    """/monthly 或 --monthly. 返 exit code."""
+    if not _try_import_reports() or generate_monthly_report is None:
+        print("⚠️  --monthly 功能未实现 (仓库无 reports 包)", file=sys.stderr)
+        return 1
+    print(generate_monthly_report(DB_PATH))
+    return 0
+
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "kids_points.db")
 
@@ -168,11 +216,9 @@ def main():
     if len(sys.argv) > 1:
         arg = sys.argv[1]
         if arg == "--daily":
-            print(generate_daily_report(DB_PATH))
-            return
+            sys.exit(cmd_reports_daily())
         elif arg == "--monthly":
-            print(generate_monthly_report(DB_PATH))
-            return
+            sys.exit(cmd_reports_monthly())
         elif arg == "--replay":
             # 把 --replay 之后的所有参数透传给 replay.main
             sys.argv = [sys.argv[0]] + sys.argv[2:]
@@ -203,9 +249,9 @@ def main():
         if line == "/quit":
             break
         elif line == "/daily":
-            print(generate_daily_report(DB_PATH))
+            cmd_reports_daily()  # 交互模式不退出, 忽略 exit code
         elif line == "/monthly":
-            print(generate_monthly_report(DB_PATH))
+            cmd_reports_monthly()
         elif line == "/balance":
             conn = init_db(DB_PATH)
             b = get_current_balance(conn)

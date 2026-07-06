@@ -98,7 +98,9 @@ ERROR_COLOR = (200, 30, 0)       # 红色 (错误提示, 调试用)
 
 # ==================== V2 CLI 路径配置 ====================
 
-V2_CLI = "/home/wang/projects/kids-points-v2/runtime/cli.py"
+V2_PROJECT_ROOT = "/home/wang/projects/kids-points-v2"
+V2_CLI = f"{V2_PROJECT_ROOT}/runtime/cli.py"  # 仅作路径参考, 实际走 -m runtime.cli
+V2_DB = f"{V2_PROJECT_ROOT}/runtime/data/kids_points.db"
 CACHE_FILE = "/tmp/dashboard_cache.json"
 CLI_TIMEOUT = 5  # 5s, V2 CLI 纯读, 正常 < 0.1s
 
@@ -111,11 +113,19 @@ FONT_FAMILY = "notosanscjksc,notosansmonocjksc,notosansmono,wqy-microhei,wqy-zen
 # ==================== V2 CLI 包装 (跟 § 3 / § 8 data_source.py 同款, M1.2 抽出) ====================
 
 def cli_call(subcmd: list, timeout: int = CLI_TIMEOUT) -> Optional[dict]:
-    """调 V2 CLI 子命令, 返 dict. 失败返 None."""
+    """调 V2 CLI 子命令, 返 dict. 失败返 None.
+
+    Notes (2026-07-05 fix): 改用包模式 (`python3 -m runtime.cli`) + cwd=V2_PROJECT_ROOT,
+    让 cli.py 的 `from .db` / `from .pipeline` 相对导入找得到父包, `from reports` 懒加载
+    也兼容. 跟 data_source.py 修法一致.
+    """
     try:
         result = subprocess.run(
-            ["python3", V2_CLI] + subcmd,
-            capture_output=True, text=True, timeout=timeout,
+            ["python3", "-m", "runtime.cli"] + subcmd,
+            cwd=V2_PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
         if result.returncode != 0:
             print(f"[cli_call] {subcmd} exit {result.returncode}: {result.stderr[:200]}", file=sys.stderr)

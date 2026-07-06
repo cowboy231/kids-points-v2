@@ -1,5 +1,50 @@
 # CHANGELOG — Kids Dashboard 完整版本史
 
+## v5.5 (2026-07-05) — 修复 V2 CLI 包导入 + subprocess 调用模式
+
+**症状**: 看板 server 7/4 02:03 systemd TERM 之后没成功重启, 之后所有 ESP32 拉取都靠 `/tmp/dashboard_cache.json` 兜底 (7/4 20:56 快照), 7/5 当天积分/新流水都不同步到屏.
+
+**根因** (两个独立 bug, 都拦住 V2 CLI 启动):
+
+1. **cli.py 用相对导入 + 老王 5cfda3e 漏改半步**:
+   ```python
+   # runtime/cli.py line 28-33 (修前):
+   from .db import (...)              # ✅ 5cfda3e 改成相对
+   from .pipeline import (...)        # ✅ 同上
+   from reports import (...)          # ❌ 漏改! reports/ 不是 Python 包
+   ```
+   `reports/` 是仓库根的报告产物目录 (`v1_v2_compare.py` + 4 个 .md), 没 `__init__.py`, 这两个函数本仓库也无定义. **任何调 cli.py 的路径都 ImportError**. 老王当时跑过 pytest 60 通过 (test_pipeline_unit 只 `from runtime.db import ...`, 不导入 cli.py), 但 CLI 实际从来没启动成功过.
+
+2. **subprocess 调用模式错** (`data_source.py` / `desktop_sim.py` / `handle_feishu.py` 三处同坑):
+   ```python
+   # 修前: 把 cli.py 当脚本跑, 没父包上下文 → `from .db` 必败
+   subprocess.run(["python3", "/abs/path/runtime/cli.py", "balance"])
+   ```
+   即使 cli.py 第 33 行 import 修了, `python3 <绝对路径>/cli.py` 还是脚本模式 (没有 `__package__`), 相对导入也挂.
+
+**修复**:
+
+- `runtime/cli.py`: 删 `from reports import ...` 死导入, 改成 `_try_import_reports()` 懒加载 + `cmd_reports_daily()` / `cmd_reports_monthly()` 包装, 找不到 reports 包返 exit 1 + stderr 友好提示 ("功能未实现"), dashboard 不需要这俩功能所以不影响.
+- `extensions/dashboard/code/server/data_source.py`: subprocess 改 `python3 -m runtime.cli <subcmd>` + `cwd=V2_PROJECT_ROOT`, 让 cli.py 以 `runtime.cli` 包模式启动.
+- `extensions/dashboard/code/sim/desktop_sim.py`: 同改.
+- `skill/scripts/handle_feishu.py`: 加 `V2_PROJECT_ROOT` 常量 (从 V2_RUNTIME_DIR 推导 + env override), subprocess 同改.
+- `tests/test_cli_subprocess.py`: 新增 5 个回归测试, 覆盖 balance/today/history 三个子命令 + ImportError 检测 + module 级 cli_call 包装. 0 LLM token, 秒级.
+- `etc/systemd/system/dashboard.service` (系统级, **不在 git repo 内**): 修 `Documentation=` 路径 (加 `file://` 前缀) + `ExecStart` 改用 hermes venv python (跟 .gitignore 排除一致).
+
+**验证**:
+- 5/5 新回归测试通过
+- 60/60 既有 `tests/test_pipeline_unit.py` 通过 (无破坏)
+- 前台跑 `python3 -m runtime.cli balance/today/history` 全 OK, 中文流水正常
+- systemd `dashboard.service` `active (running)`, `/api/dashboard` 返真数据 (balance=24.5, 5 行流水含中文), `/health` 报 `cache.dirty=false, watchdog_alive=true`
+- ESP32 `192.168.50.197` 已经在 5s 一次拉, journal 全 200
+
+**老王决策归档**:
+- "够用就好, 不冒险升级" 应用到此 bug: 没改 cli.py 的整体结构 (pipeline / db 接口), 只做最小 surgical 修复 (subprocess 调用 + 懒加载)
+- "数据本地化偏好" 不冲突: subprocess 仍纯本地, 无新外部依赖
+- 修复是**真正的根因修复**, 不是 patch /tmp cache; cache 仍保留作兜底 (v5.4 设计原则不变)
+
+---
+
 ## v5.4 (2026-06-20) — Service 删 WS + in-memory cache
 
 **老王决策**:

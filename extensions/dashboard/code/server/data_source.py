@@ -18,8 +18,9 @@ from typing import Optional
 
 # ==================== V2 CLI 路径配置 ====================
 
-V2_CLI = "/home/wang/projects/kids-points-v2/runtime/cli.py"
-V2_DB = "/home/wang/projects/kids-points-v2/runtime/data/kids_points.db"
+V2_PROJECT_ROOT = "/home/wang/projects/kids-points-v2"  # 包上下文 cwd (cli.py 用 from .db + from reports)
+V2_CLI = os.path.join(V2_PROJECT_ROOT, "runtime", "cli.py")  # 仅作路径参考, 实际走 -m runtime.cli
+V2_DB = os.path.join(V2_PROJECT_ROOT, "runtime", "data", "kids_points.db")
 CACHE_FILE = "/tmp/dashboard_cache.json"
 CLI_TIMEOUT = 5  # V2 CLI 纯读, 正常 < 0.1s, 5s 足够
 
@@ -42,11 +43,20 @@ def cli_call(subcmd: list, timeout: int = CLI_TIMEOUT) -> Optional[dict]:
 
     Returns:
         解析后的 dict, 或 None (调失败 / exit 非 0 / 非合法 JSON / 超时)
+
+    Notes (2026-07-05 fix):
+        cli.py 顶部用相对导入 `from .db import ...` 和 `from reports import ...`.
+        必须以包模式 (`python3 -m runtime.cli`) 跑 + cwd=V2_PROJECT_ROOT (让
+        `from reports` 找得到 reports/ 兄弟目录). 之前 `python3 <绝对路径>/cli.py`
+        把 cli.py 当脚本跑, 缺父包上下文 → ImportError, 看板永远靠 /tmp cache 兜底.
     """
     try:
         result = subprocess.run(
-            ["python3", V2_CLI] + subcmd,
-            capture_output=True, text=True, timeout=timeout,
+            ["python3", "-m", "runtime.cli"] + subcmd,
+            cwd=V2_PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
         if result.returncode != 0:
             print(f"[data_source.cli_call] {subcmd} exit {result.returncode}: {result.stderr[:200]}", file=sys.stderr)
